@@ -1,4 +1,4 @@
-43fc2da6fde5d5b3ea8740b493d3eb5c *DESCRIPTION
+de1eade79e890ae89d69f394b051237d *DESCRIPTION
 6dedf87db0f65c63eecb9da00cc53c53 *LICENSE
 5ebb2c932f9faaef8970e2783bb90fb4 *NAMESPACE
 c5c9931928f9e91a93bc5e0c12891405 *NEWS.md
@@ -25,10 +25,11 @@ e08a4074f7081f72be074b1f75305879 *man/figures/logo.png
 784a58d7977af215c04ec45c8541c220 *man/record_overture.Rd
 f24ae5400f3ffc4acac34f4531314c42 *man/sf_as_dbplyr.Rd
 85aa57a545c634dd7e9ffa5b2e44ef54 *man/stage_conn.Rd
+0e21779df809f01fc2c7ac8d8585d903 *tests/spelling.R
 d5a62e097cf36d45bfdaf2e53c034d62 *tests/testthat.R
-c6464c55cbb287fb33eaf09b0f75fbb9 *tests/testthat/test-bbox.R
-aada04159f8e98cc602442a28273a9e6 *tests/testthat/test-class.R
-bdf8f68283b87b390b2db6d29f571304 *tests/testthat/test-mem_test.R
-3d223165d58a44dd1fee3a7e70e9c016 *tests/testthat/test-record.R
-b6854bd6e8ef1f646f3cd79d0a88b954 *tests/testthat/test-st_filter.R
+af510949cfb39dedc64984f7a19ab3d2 *tests/testthat/test-bbox.R
+c4d6254b421b1ae6768f210010bc3165 *tests/testthat/test-class.R
+722cd1d5b083680096245c102d713688 *tests/testthat/test-mem_test.R
+708a1cc8e2017ab2b4e59507a302c5d9 *tests/testthat/test-record.R
+d07b30450ade83981a5b3864a0caf943 *tests/testthat/test-st_filter.R
 2b11d48fd82f6f778af36c9d44336270 *vignettes/overtureR.Rmd
