@@ -13,17 +13,25 @@ open_curtain(
   mode = "view",
   tablename = NULL,
   read_opts = list(),
-  base_url = "s3://overturemaps-us-west-2/release/2025-03-19.0",
+  predicate = "intersects",
+  release = NULL,
+  base_url = NULL,
   bbox = NULL
 )
 }
 \arguments{
 \item{type}{A string specifying the type of overture dataset to read.
-Setting to "*" or \code{NULL} will read all types for a given theme.}
+Setting to "*" or \code{NULL} will read all types for a given theme. See
+\code{\link[=overture_types]{overture_types()}} for the valid values.}
 
-\item{spatial_filter}{An object to spatially filter the result.}
+\item{spatial_filter}{An object to spatially filter the result: a named
+numeric vector or \code{sf::st_bbox()} bounding box, an \code{sf} or \code{sfc} object, the
+name of a table in \code{conn}, or another \code{dbplyr} lazy table with a \code{geometry}
+column. \code{sf} filters in another coordinate reference system are transformed
+to EPSG:4326 (Overture's) before filtering.}
 
-\item{theme}{Inferred from type by default. Must be set if type is "*" or NULL}
+\item{theme}{Inferred from type by default. Must be set if type is "*" or
+\code{NULL}.}
 
 \item{conn}{A connection to a duckdb database.}
 
@@ -35,10 +43,22 @@ dataset into memory.}
 \item{tablename}{The name of the table to create in the database.}
 
 \item{read_opts}{A named list of key-value pairs passed to
-\href{https://duckdb.org/docs/data/parquet/overview.html#parameters}{DuckDB's read_parquet}}
+\href{https://duckdb.org/docs/data/parquet/overview#parameters}{DuckDB's read_parquet}.
+\code{union_by_name} defaults to \code{TRUE} when \code{type} is \code{"*"}, because the types
+in a theme have different columns.}
 
-\item{base_url}{Allows user to download data from a different mirror, such
-as a local directory, or a alternative release.}
+\item{predicate}{How a feature must relate to \code{spatial_filter} to be kept:
+\code{"intersects"} (default), \code{"within"} (the feature lies entirely inside the
+filter) or \code{"contains"} (the feature contains the whole filter).}
+
+\item{release}{An Overture release, such as \code{"2026-08-19.0"}. Defaults to
+\code{getOption("overturer_release")}, then to the latest release found by
+\code{\link[=latest_overture_release]{latest_overture_release()}}. See \code{\link[=overture_releases]{overture_releases()}} for the releases
+Overture still hosts. When \code{base_url} is set, \code{release} only labels the
+result.}
+
+\item{base_url}{Read from a different mirror, such as a local directory from
+\code{\link[=record_overture]{record_overture()}}. Defaults to the S3 path of \code{release}.}
 
 \item{bbox}{alias for \code{spatial_filter}. may be deprecated in the future.}
 }
@@ -47,13 +67,31 @@ An dbplyr lazy dataframe, or an sf dataframe if as_sf is TRUE
 }
 \description{
 Fetches overture data from AWS.
-If a bounding box is provided, it applies spatial filtering to only include
-records within that area. The core code is copied from \code{duckdbfs}, which
-deserves all credit for the implementation
+If a spatial filter is provided, it applies spatial filtering to only
+include records within that area. The core code is copied from \code{duckdbfs},
+which deserves all credit for the implementation
+}
+\details{
+When \code{spatial_filter} is set and \code{base_url} points at an Overture release
+or at a directory written by \code{\link[=record_overture]{record_overture()}}, \code{open_curtain()} reads
+only the Parquet files whose bounding box touches the filter, using the
+file list in Overture's STAC catalog or the local copy's manifest (see
+\code{\link[=overture_types]{overture_types()}} and \code{\link[=clear_overture_cache]{clear_overture_cache()}}). This turns a cold query
+over hundreds of files into one over a handful. Set
+\code{options(overturer_prune = FALSE)} to always read the whole partition.
+
+To pin every query in a session to one release, set
+\code{options(overturer_release = "2026-08-19.0")}.
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 bbox <- c(xmin = -120.5, ymin = 35.5, xmax = -120.0, ymax = 36.0)
 open_curtain("building", bbox)
+
+# pin a release so the script returns the same rows next month
+open_curtain("building", bbox, release = "2026-08-19.0")
+
+# only buildings entirely inside the box
+open_curtain("building", bbox, predicate = "within")
 \dontshow{\}) # examplesIf}
 }

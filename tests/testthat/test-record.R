@@ -1,102 +1,212 @@
-broadway <- c(xmin = -73.99, ymin = 40.76, xmax = -73.98, ymax = 40.76)
+test_that("record_overture writes a local copy that reads back the same", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+  dir <- withr::local_tempdir()
 
-test_that("downloading works by directory", {
-  skip_if_offline()
-  skip_on_cran()
+  local <- record_overture(places, dir, overwrite = TRUE)
 
-  con <- DBI::dbConnect(duckdb::duckdb())
-  counties <- open_curtain("division_area", bbox = NULL, conn = con) |>
-    dplyr::filter(subtype == "county" & country == "US")
+  expect_s3_class(local, "overture_call")
+  expect_equal(
+    attr(local, "overture_playbill"),
+    list(type = "place", theme = "places", release = fixture_release)
+  )
+  expect_true(dir.exists(file.path(dir, "theme=places", "type=place")))
+  sql <- view_sql(conn, dbplyr::remote_name(local))
+  expect_match(sql, basename(dir), fixed = TRUE)
+  expect_match(sql, "theme=places/type=place/", fixed = TRUE)
 
-  # use a dir that doesn't exist
-  dir <- paste0(tempdir(), "/test")
+  remote <- collect(places)
+  copied <- collect(local)
+  expect_equal(colnames(remote), colnames(copied))
+  expect_equal(dim(remote), dim(copied))
+  expect_equal(class(remote), class(copied))
+  expect_equal(sort(remote$id), sort(copied$id))
+  expect_equal(sf::st_crs(copied), sf::st_crs(4326))
+})
 
-  timer <- bench::mark(
-    exec = DBI::dbExecute(con, dbplyr::sql_render(counties)),
-    func = {
-      counties_dl <- record_overture(counties, dir, overwrite = TRUE)
-    },
-    check = FALSE, filter_gc = FALSE
+test_that("record_overture keeps a filtered query, not the whole partition", {
+  conn <- local_conn()
+  buildings <- local_fixture_curtain("building", conn = conn)
+  tall <- dplyr::filter(buildings, !is.na(height), height > 100)
+  dir <- withr::local_tempdir()
+
+  local <- record_overture(tall, dir, overwrite = TRUE)
+  expect_equal(
+    dplyr::pull(dplyr::count(local), n),
+    dplyr::pull(dplyr::count(tall), n)
+  )
+  expect_true(all(collect(local)$height > 100))
+})
+
+test_that("record_overture respects overwrite", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+  dir <- file.path(withr::local_tempdir(), "fresh")
+
+  # creates a missing directory
+  expect_no_error(record_overture(places, dir))
+  # refuses to write into a non-empty one
+  expect_error(record_overture(places, dir), "'overwrite' must be set to TRUE")
+  expect_no_error(record_overture(places, dir, overwrite = TRUE))
+})
+
+test_that("record_overture passes write_opts through and rejects overrides", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+  dir <- withr::local_tempdir()
+
+  expect_error(
+    record_overture(places, dir, write_opts = "OVERWRITE", overwrite = TRUE)
+  )
+  expect_error(
+    record_overture(
+      places, dir, write_opts = "PARTITION_BY(thing)", overwrite = TRUE
+    )
+  )
+  expect_error(record_overture(mtcars, dir), "must be a overture_call")
+
+  result <- record_overture(
+    places, dir, write_opts = "ROW_GROUP_SIZE 100000", overwrite = TRUE
+  )
+  expect_s3_class(result, "overture_call")
+})
+
+test_that("snapshot_overture defaults to a temporary directory", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+
+  snapshot <- snapshot_overture(places)
+  expect_s3_class(snapshot, "overture_call")
+  sql <- view_sql(conn, dbplyr::remote_name(snapshot))
+  expect_match(sql, basename(tempdir()), fixed = TRUE)
+  expect_equal(
+    dplyr::pull(dplyr::count(snapshot), n),
+    dplyr::pull(dplyr::count(places), n)
+  )
+})
+
+test_that("record_overture writes a manifest that open_curtain prunes with", {
+  conn <- local_conn()
+  buildings <- local_fixture_curtain("building", conn = conn)
+  dir <- withr::local_tempdir()
+
+  local <- record_overture(buildings, dir, overwrite = TRUE, grid = 0.002)
+  type_dir <- file.path(dir, "theme=buildings", "type=building")
+  expect_true(file.exists(file.path(type_dir, "_overture.json")))
+  cells <- list.dirs(type_dir, full.names = FALSE, recursive = FALSE)
+  expect_gt(length(cells), 1)
+  expect_match(cells, "^x_cell=")
+
+  manifest <- recording_manifest(conn, dir, "buildings", "building")
+  expect_equal(manifest$release, fixture_release)
+  expect_gt(nrow(manifest$files), 1)
+  expect_true(all(file.exists(manifest$files$file)))
+  expect_true(all(manifest$files$xmin <= manifest$files$xmax))
+  parquet <- Sys.glob(file.path(type_dir, "*", "*", "*.parquet"))
+  expect_equal(nrow(manifest$files), length(parquet))
+
+  # the copy answers a small query from a subset of its files
+  corner <- c(xmin = -73.988, ymin = 40.757, xmax = -73.987, ymax = 40.758)
+  pruned <- open_curtain(
+    "building", corner, conn = conn, base_url = dir, tablename = "corner"
+  )
+  sql <- view_sql(conn, "corner")
+  expect_no_match(sql, "**", fixed = TRUE)
+  n_files <- lengths(regmatches(sql, gregexpr(".parquet'", sql, fixed = TRUE)))
+  expect_lt(n_files, nrow(manifest$files))
+  expect_equal(playbill(pruned)$release, fixture_release)
+
+  withr::local_options(overturer_prune = FALSE)
+  unpruned <- open_curtain("building", corner, conn = conn, base_url = dir)
+  expect_equal(
+    sort(dplyr::pull(pruned, id)), sort(dplyr::pull(unpruned, id))
+  )
+  expect_gt(dplyr::pull(dplyr::count(pruned), n), 0)
+})
+
+test_that("record_overture accepts extra partition columns", {
+  conn <- local_conn()
+  buildings <- local_fixture_curtain("building", conn = conn)
+  dir <- withr::local_tempdir()
+
+  local <- record_overture(
+    buildings, dir, overwrite = TRUE, partition_by = "subtype"
+  )
+  type_dir <- file.path(dir, "theme=buildings", "type=building")
+  subdirs <- list.dirs(type_dir, full.names = FALSE, recursive = FALSE)
+  expect_match(subdirs, "^subtype=")
+  expect_equal(
+    dplyr::pull(dplyr::count(local), n),
+    dplyr::pull(dplyr::count(buildings), n)
   )
 
-  exec_mem <- dplyr::filter(timer, as.character(expression) == "exec")$mem_alloc
-  func_mem <- dplyr::filter(timer, as.character(expression) == "func")$mem_alloc
+  expect_error(
+    record_overture(buildings, dir, overwrite = TRUE, partition_by = "nope"),
+    "not in the data: nope"
+  )
+  expect_error(record_overture(buildings, dir, overwrite = TRUE, grid = -1))
+  expect_error(
+    record_overture(
+      dplyr::select(buildings, id, geometry), dir, overwrite = TRUE, grid = 1
+    ),
+    "`bbox` column"
+  )
+})
 
-  expect_lt(func_mem, exec_mem / 10)
+test_that("record_overture can open the data itself", {
+  conn <- local_conn()
+  local_fixture_stac()
+  dir <- withr::local_tempdir()
 
-  collect_timer <- bench::mark(
-    default = {
-      default <- dplyr::collect(counties)
-    },
-    dl = {
-      dl <- dplyr::collect(counties_dl)
-    },
-    check = FALSE, max_iterations = 5, filter_gc = FALSE
+  local <- record_overture(
+    "place", dir,
+    spatial_filter = fixture_bbox, conn = conn, base_url = fixture_base_url()
+  )
+  expect_s3_class(local, "overture_call")
+  expect_equal(playbill(local)$type, "place")
+  direct <- local_fixture_curtain("place", conn = conn)
+  expect_equal(
+    dplyr::pull(dplyr::count(local), n), dplyr::pull(dplyr::count(direct), n)
   )
 
-  m_def <- dplyr::filter(collect_timer, as.character(expression) == "default")$median
-  m_dl <- dplyr::filter(collect_timer, as.character(expression) == "dl")$median
-
-  expect_lt(m_dl, m_def / 10)
-
-  expect_equal(colnames(default), colnames(dl))
-  expect_equal(dim(default), dim(dl))
-  expect_equal(class(default), class(dl))
-  expect_equal(sum(sf::st_area(default)), sum(sf::st_area(dl)))
-
-  unlink(dir)
-  DBI::dbDisconnect(con)
+  expect_error(
+    record_overture(direct, dir, spatial_filter = fixture_bbox),
+    "only apply when `curtain_call` is a type name"
+  )
 })
 
+test_that("record_overture quotes the output path", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+  dir <- file.path(withr::local_tempdir(), "o'brien's data")
 
-test_that("record_overture respects overwrite parameter", {
-  skip_if_offline()
-
-  dir <- tempdir()
-  unlink(dir, recursive = TRUE)
-
-  place <- open_curtain("place", broadway)
-
-  # First write
-  record_overture(place, dir)
-
-  # Second write without overwrite
-  expect_error(record_overture(place, dir))
-
-  # Second write with overwrite
-  expect_no_error(record_overture(place, dir, overwrite = TRUE))
-
-  unlink(dir, recursive = TRUE)
+  local <- record_overture(places, dir)
+  expect_true(dir.exists(file.path(dir, "theme=places", "type=place")))
+  expect_equal(
+    dplyr::pull(dplyr::count(local), n), dplyr::pull(dplyr::count(places), n)
+  )
 })
 
-test_that("record_overture handles custom write_opts", {
-  skip_if_offline()
+test_that("overwrite = TRUE replaces the partition, not the directory", {
+  conn <- local_conn()
+  places <- local_fixture_curtain("place", conn = conn)
+  buildings <- local_fixture_curtain("building", conn = conn)
+  dir <- withr::local_tempdir()
+  writeLines("keep me", file.path(dir, "notes.txt"))
 
-  dir <- tempdir()
-  place <- open_curtain("place", broadway)
+  record_overture(buildings, dir, overwrite = TRUE)
+  record_overture(places, dir, overwrite = TRUE)
+  few <- dplyr::filter(places, !is.na(confidence), confidence > 0.9)
+  local <- record_overture(few, dir, overwrite = TRUE)
 
-  expect_error(record_overture(place, dir, write_opts = "OVERWRITE"))
-  expect_error(record_overture(place, dir, write_opts = "PARTITION_BY(thing)"))
-
-  custom_opts <- c("ROW_GROUP_SIZE 100000")
-  result <- record_overture(place, dir, write_opts = custom_opts, overwrite = TRUE)
-
-  expect_s3_class(result, "overture_call")
-
-  # Check if custom partitioning was applied (this might require inspecting the file structure)
-  expect_true(dir.exists(file.path(dir, "theme=places")))
-
-  unlink(dir, recursive = TRUE)
-})
-
-test_that("snapshot_overture works correctly", {
-  skip_if_offline()
-
-  result <- snapshot_overture(open_curtain("place", spatial_filter = broadway))
-
-  expect_s3_class(result, "overture_call")
-  expect_true(dir.exists(file.path(tempdir(), "theme=places")))
-
-  # Clean up
-  unlink(list.files(tempdir(), pattern = "theme=", full.names = TRUE), recursive = TRUE)
+  expect_equal(
+    dplyr::pull(dplyr::count(local), n), dplyr::pull(dplyr::count(few), n)
+  )
+  expect_true(file.exists(file.path(dir, "notes.txt")))
+  expect_true(dir.exists(file.path(dir, "theme=buildings", "type=building")))
+  still_buildings <- open_curtain("building", conn = conn, base_url = dir)
+  expect_equal(
+    dplyr::pull(dplyr::count(still_buildings), n),
+    dplyr::pull(dplyr::count(buildings), n)
+  )
 })

@@ -2,32 +2,35 @@
 % Please edit documentation in R/as_overture.R
 \name{as_overture}
 \alias{as_overture}
-\title{Convert a tbl_sql object to a overture_call object}
+\title{Convert a tbl_sql object to an overture_call object}
 \usage{
-as_overture(x, type, theme = get_theme_from_type(type))
+as_overture(x, type, theme = get_theme_from_type(type), release = NULL)
 }
 \arguments{
 \item{x}{A tbl_sql object representing an Overture Maps dataset.}
 
 \item{type}{A string specifying the type of overture dataset to read.
-Setting to "*" or \code{NULL} will read all types for a given theme.}
+Setting to "*" or \code{NULL} will read all types for a given theme. See
+\code{\link[=overture_types]{overture_types()}} for the valid values.}
 
-\item{theme}{Inferred from type by default. Must be set if type is "*" or NULL}
+\item{theme}{Inferred from type by default. Must be set if type is "*" or
+\code{NULL}.}
+
+\item{release}{The Overture release the data came from, such as
+\code{"2026-08-19.0"}, or \code{NULL} if unknown.}
 }
 \value{
-A tbl_sql object with the additional class overture_call and
-attributes overture_type and overture_theme.
+A tbl_sql object with the additional class \code{overture_call} and an
+\code{overture_playbill} attribute: a list with \code{type}, \code{theme} and \code{release}.
 }
 \description{
-This function adds the overture_call class to a tbl_sql object.  It is
-primarily used internally#' by the open_curtain() function but can also be
-used directly on tbl_sql #' objects representing Overture Maps data.
-}
-\details{
-The function adds the overture_call class as the first class of the object
+Adds the \code{overture_call} class to a \code{tbl_sql} object. \code{\link[=open_curtain]{open_curtain()}}
+does this for you; call it directly on a lazy table of Overture data you
+built yourself, so that \code{\link[dplyr:collect]{collect()}} returns \code{sf} and \code{\link[=record_overture]{record_overture()}}
+knows the type and theme of the data.
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # The open_curtain() function already uses as_overture() internally,
 # but you can also use it directly:
 conn <- stage_conn()
@@ -37,8 +40,8 @@ class(division)
 
 # views
 division2 <- tbl(conn, "test")
-division2 <- as_overture(division2)
+division2 <- as_overture(division2, "division")
 
-exit_stage(conn)
+strike_stage(conn)
 \dontshow{\}) # examplesIf}
 }

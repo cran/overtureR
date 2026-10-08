@@ -30,11 +30,11 @@ install.packages("overtureR")
   [dbplyr’s](https://dbplyr.tidyverse.org/) lazy evaluation
 - Seamless `dplyr` and `sf` integration
 - Merge with your local `sf` data within `duckdb` or with `sf`
-- Local downloading for offline use and perforamnce
+- Local downloading for offline use and performance
 
 ## Usage
 
-Replicating `duckdb` examples fromm the [Overture
+Replicating `duckdb` examples from the [Overture
 docs](https://docs.overturemaps.org/getting-data/duckdb/)
 
 ``` r
@@ -63,7 +63,7 @@ ggplot(counties) +
   ) 
 ```
 
-<img src="man/figures/README-counties-1.png" width="100%" />
+<img src="man/figures/README-counties-1.png" alt="" width="100%" />
 
 ``` r
 library(overtureR)
@@ -76,7 +76,7 @@ mountains <- open_curtain(type = "*", theme = "places") |>
     primary_name = names$primary,
     x = bbox$xmin,
     y = bbox$ymin,
-    main_category = categories$primary,
+    main_category = taxonomy$primary,
     primary_source = sources[[1]]$dataset,
     confidence,
     geometry # currently no duckdb spatial implementation
@@ -84,16 +84,17 @@ mountains <- open_curtain(type = "*", theme = "places") |>
   filter(main_category == "mountain" & confidence > .90)
 
 head(mountains)
-#> # Source:   SQL [6 x 8]
-#> # Database: DuckDB v1.0.0 [Arthur.Gailes@Windows 10 x64:R 4.2.1/:memory:]
-#>   id            primary_name     x     y main_category primary_source confidence
-#>   <chr>         <chr>        <dbl> <dbl> <chr>         <chr>               <dbl>
-#> 1 08f464e0e312… Kawaikini    -159.  22.1 mountain      meta                0.954
-#> 2 08f464e3b1a2… Kalepa       -159.  22.0 mountain      meta                0.938
-#> 3 08f464e05984… Sleeping Gi… -159.  22.1 mountain      meta                0.945
-#> 4 08f464e3a4d0… Nounou-East… -159.  22.1 mountain      meta                0.945
-#> 5 08f464e05514… Makaleha Mo… -159.  22.1 mountain      meta                0.965
-#> 6 08f464e03538… Makana       -160.  22.2 mountain      meta                0.938
+#> # Overture release 2026-09-23.1, theme places
+#> # Source:   SQL [?? x 8]
+#> # Database: DuckDB 1.5.2 [Arthur.Gailes@Windows 10 x64:R 4.5.0/:memory:]
+#>   id           primary_name      x     y main_category primary_source confidence
+#>   <chr>        <chr>         <dbl> <dbl> <chr>         <chr>               <dbl>
+#> 1 0de5d733-2f… "Vallée De … -149.  -17.6 mountain      meta                0.918
+#> 2 d6ea3b50-3a… "Vallée De … -150.  -17.6 mountain      meta                0.959
+#> 3 c3ce4dc2-ce… "Belvédère … -150.  -17.5 mountain      meta                0.954
+#> 4 34e195ed-66… "Mont Popot… -152.  -16.5 mountain      meta                0.912
+#> 5 32bfc243-31… "\"Gimnasio…  -99.9  16.9 mountain      meta                0.955
+#> 6 33348e6e-5b… "Minera Med…  -99.7  18.0 mountain      meta                0.926
 #> # ℹ 1 more variable: geometry <POINT [°]>
 ```
 
@@ -145,12 +146,10 @@ plot_gg(
 render_snapshot(clear=TRUE)
 ```
 
-<img src="man/figures/README-record-1.png" width="100%" />
+<img src="man/figures/README-record-1.png" alt="" width="100%" />
 
 ## Roadmap
 
-- Read pmtiles
-- Add partition, chunking to record_overture
-- Add beta/alpha datasets
-- Add mapping vignette
-- Add performance vignette
+- Tile-by-tile downloads with a progress bar in `record_overture()`
+- Mapping vignette (including Overture’s PMTiles through `mapgl`)
+- Performance vignette

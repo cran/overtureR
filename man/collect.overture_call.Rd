@@ -12,13 +12,13 @@ collect_sf(...)
 \arguments{
 \item{x}{A lazy data frame backed by a database query.}
 
-\item{...}{Further arguments passed to \code{\link[dplyr:compute]{dplyr::collect()}}.}
+\item{...}{Further arguments passed to \code{\link[dplyr:collect]{dplyr::collect()}}.}
 
 \item{geom_col}{The name of the geometry column. Will auto-detect names
 matching 'geom'.}
 
-\item{crs}{The coordinate reference system to use for the geometries, specified
-by its EPSG code. The default is 4326 (WGS 84).}
+\item{crs}{The coordinate reference system to use for the geometries,
+specified by its EPSG code. The default is 4326 (WGS 84).}
 }
 \value{
 An 'sf' object with the dataset converted to spatial features.
@@ -27,8 +27,15 @@ An 'sf' object with the dataset converted to spatial features.
 Collects a lazy dbplyr view and materializes it as an
 in-memory \code{sf} table. \code{collect_sf} is a deprecated alias.
 }
+\details{
+The geometry column is read back as well-known binary and converted with
+\code{sf::st_as_sfc()}. If the column is already binary (for example, after a
+\code{mutate(geometry = ST_AsWKB(geometry))}), it is used as is. If it is
+neither DuckDB \code{GEOMETRY} nor binary, the result is returned as a plain
+data frame.
+}
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 
 bbox <- c(xmin = -120.5, ymin = 35.5, xmax = -120.0, ymax = 36.0)
 lazy_tbl <- open_curtain("building", bbox)
