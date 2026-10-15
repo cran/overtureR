@@ -1,6 +1,6 @@
 Package: overtureR
 Title: Load 'Overture' Datasets as 'dbplyr' and 'sf'-Ready Data Frames
-Version: 0.3.1
+Version: 0.3.2
 Authors@R: 
     person("Arthur", "Gailes", , "agailes1@gmail.com", 
     role = c("aut", "cre", "cph"),
@@ -23,9 +23,9 @@ Imports: DBI, dbplyr, dplyr (>= 1.0.0), duckdb (>= 1.1.0), glue, rlang,
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
 NeedsCompilation: no
-Packaged: 2026-10-08 19:38:42 UTC; Arthur.Gailes
+Packaged: 2026-10-15 17:51:15 UTC; Arthur.Gailes
 Author: Arthur Gailes [aut, cre, cph] (ORCID:
     <https://orcid.org/0009-0006-8176-8653>)
 Maintainer: Arthur Gailes <agailes1@gmail.com>
 Repository: CRAN
-Date/Publication: 2026-10-08 22:10:02 UTC
+Date/Publication: 2026-10-15 19:30:02 UTC

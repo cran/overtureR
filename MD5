@@ -1,7 +1,7 @@
-cfd8691cdd20455e05be95452c39e0f5 *DESCRIPTION
+678eec1affb0915ca8fc188050f06b38 *DESCRIPTION
 166d68378451356e06f8027e22220418 *LICENSE
 cde8ee2a6ca2deaca8c5a0511e278f2a *NAMESPACE
-4fa806da3803b9a563fad71dbcf757a2 *NEWS.md
+1270a5cedaf0c17bee90bf01e961c5f7 *NEWS.md
 85689e40b1d80160cf093017c9a5e8bc *R/as_overture.R
 5f0750687b1ee8e8b1eb169883af6966 *R/collect.R
 221c364b49ca3601ef35ceadb96caad9 *R/get_theme_from_type.R
@@ -59,7 +59,7 @@ ec3bcfac1154a727b4f6071b5c26f2c1 *tests/testthat/fixtures/stac/2024-01-01.0/plac
 715c2c0aa2397f94bd3d345bd3340050 *tests/testthat/fixtures/stac/catalog.json
 2060c6a4b46653d37a981552f31b6516 *tests/testthat/helper.R
 794c5890ca65af1c9a49bea434e6bde3 *tests/testthat/test-live.R
-5ee70188d0de6cee11e53c964ebd22f9 *tests/testthat/test-open_curtain.R
+a0198ac45fdc6b81eec34d99a48771f5 *tests/testthat/test-open_curtain.R
 2dfc32144dff49848ac19f3e26a124f5 *tests/testthat/test-record.R
 66a8a4e4eba7c3a7b6782058277a451d *tests/testthat/test-sf_methods.R
 5e778aea5d54514c2f67415aa33429fc *tests/testthat/test-sql_builders.R
